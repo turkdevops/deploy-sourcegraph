@@ -27,9 +27,43 @@ spec:
         app: sourcegraph-frontend
         deploy: sourcegraph
     spec:
+      initContainers:
+      - name: migrator
+        image: index.docker.io/sourcegraph/migrator:insiders@sha256:206093540f0a03a2692fd9f3e605bca3890a4d43584fe75ea880db92359d3f49
+        args: ["up"]
+        resources:
+          limits:
+            cpu: 500m
+            memory: 100M
+          requests:
+            cpu: 100m
+            memory: 50M
+        env:
+        - name: PGDATABASE
+          value: sg
+        - name: PGHOST
+          value: pgsql
+        - name: PGPORT
+          value: "5432"
+        - name: PGSSLMODE
+          value: disable
+        - name: PGUSER
+          value: sg
+        - name: CODEINSIGHTS_PGDATASOURCE
+          value: postgres://postgres:password@codeinsights-db:5432/postgres
+        - name: CODEINTEL_PGDATABASE
+          value: sg
+        - name: CODEINTEL_PGHOST
+          value: codeintel-db
+        - name: CODEINTEL_PGPORT
+          value: "5432"
+        - name: CODEINTEL_PGSSLMODE
+          value: disable
+        - name: CODEINTEL_PGUSER
+          value: sg
       containers:
       - name: frontend
-        image: index.docker.io/sourcegraph/frontend:insiders@sha256:cc01a2f65e5bb9ef8d762eaa973cf1287507c74d5d4c76b3e00d278c40b356a9
+        image: index.docker.io/sourcegraph/frontend:insiders@sha256:db22cf577cbf098c810a43669b32d5bbca18984c64a3add8d2a4ff9e43f389d7
         args:
         - serve
         env:
@@ -105,7 +139,7 @@ spec:
         - mountPath: /mnt/cache
           name: cache-ssd
       - name: jaeger-agent
-        image: index.docker.io/sourcegraph/jaeger-agent:insiders@sha256:b980c65f7675a83c2181ba9b5d98efd257709dec1c261d1f93197238076249ab
+        image: index.docker.io/sourcegraph/jaeger-agent:insiders@sha256:7f2c8fe1e514a8d21f16a1b04c60fc37fa87afa3b04ac360f600a7e88aacde55
         env:
           - name: POD_NAME
             valueFrom:

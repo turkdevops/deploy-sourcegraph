@@ -4,7 +4,6 @@ resources:
 - base/cadvisor/cadvisor.DaemonSet.yaml
 - base/searcher/searcher.Service.yaml
 - base/searcher/searcher.Deployment.yaml
-- base/backend.Service.yaml
 - base/frontend/sourcegraph-frontend-internal.Service.yaml
 - base/frontend/sourcegraph-frontend.Deployment.yaml
 - base/frontend/sourcegraph-frontend.ServiceAccount.yaml
@@ -35,8 +34,6 @@ resources:
 - base/prometheus/prometheus.ConfigMap.yaml
 - base/prometheus/prometheus.Deployment.yaml
 - base/prometheus/prometheus.Service.yaml
-- base/query-runner/query-runner.Service.yaml
-- base/query-runner/query-runner.Deployment.yaml
 - base/github-proxy/github-proxy.Service.yaml
 - base/github-proxy/github-proxy.Deployment.yaml
 - base/repo-updater/repo-updater.Service.yaml
