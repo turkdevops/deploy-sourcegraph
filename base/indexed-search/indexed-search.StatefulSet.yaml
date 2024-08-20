@@ -23,7 +23,17 @@ spec:
     spec:
       containers:
       - name: zoekt-webserver
-        image: index.docker.io/sourcegraph/indexed-searcher:insiders@sha256:c7dee54ab00c0ffcdf9baefacb694828d5b42d8d89d39027f3e8076baa7a1616
+        env:
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
+        - name: OPENTELEMETRY_DISABLED
+          value: "false"
+        image: index.docker.io/sourcegraph/indexed-searcher:5.6.185@sha256:d12773366ff8194828005dae8975f2535cca0f173f033be37f79fddb4a5c4ddb
         terminationMessagePolicy: FallbackToLogsOnError
         ports:
         - containerPort: 6070
@@ -47,7 +57,17 @@ spec:
         - mountPath: /data
           name: data
       - name: zoekt-indexserver
-        image: index.docker.io/sourcegraph/search-indexer:insiders@sha256:55f663b91ae3cd717262961f34f92ab708b88f07f956bbaa98d81393dbc440d0
+        env:
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
+        - name: OPENTELEMETRY_DISABLED
+          value: "false"
+        image: index.docker.io/sourcegraph/search-indexer:5.6.185@sha256:d9882354fa07f5168ae981cd80776c9b13048502bc63a3ea217a7abdff49149a
         terminationMessagePolicy: FallbackToLogsOnError
         ports:
         - containerPort: 6072

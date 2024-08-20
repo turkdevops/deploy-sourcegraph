@@ -23,51 +23,27 @@ steps:
     command: .buildkite/verify-release/verify-release.sh
     agents: { queue: standard }
 
-  - label: ":k8s: :sleuth_or_spy:" 
+  - label: ":k8s: :sleuth_or_spy:"
     command: .buildkite/check-image-names.sh
     agents: { queue: standard }
 
   - label: ":k8s:"
     command: .buildkite/verify-overlays.sh
-    agents: { queue: standard }    
+    agents: { queue: standard }
 
   - wait
 
-  # GKE already drops support for 1.19 hence this test will not run
-  # https://cloud.google.com/kubernetes-engine/docs/release-notes#June_30_2022
+  # Unable to fix the test suite, all using ancient versions that calls GKE APIs with unsupported version.
   # - label: ":pulumi: :k8s:"
   #   concurrency: 6
   #   concurrency_group: deploy-sourcegraph/integration
-  #   command: .buildkite/integration-test.sh 1.19
+  #   command: .buildkite/integration-test.sh 1.21
   #   env:
   #     VERBOSE: "true"
   #     # Can be set to true to help debug test results, but ensure that created resources
   #     # are removed manually
   #     NOCLEANUP: "false"
   #   agents: { queue: standard }
-
-  - label: ":pulumi: :k8s:"
-    concurrency: 6
-    concurrency_group: deploy-sourcegraph/integration
-    command: .buildkite/integration-test.sh 1.20
-    env:
-      VERBOSE: "true"
-      # Can be set to true to help debug test results, but ensure that created resources
-      # are removed manually
-      NOCLEANUP: "false"
-    agents: { queue: standard }
-
-  - label: ":pulumi: :k8s:"
-    concurrency: 6
-    concurrency_group: deploy-sourcegraph/integration
-    command: .buildkite/integration-test.sh 1.21
-    env:
-      VERBOSE: "true"
-      # Can be set to true to help debug test results, but ensure that created resources
-      # are removed manually
-      NOCLEANUP: "false"
-    agents: { queue: standard }
-
   - label: ":k8s:"
     concurrency: 3
     concurrency_group: deploy-sourcegraph/integration-restricted
@@ -83,3 +59,43 @@ steps:
   - label: ":k8s:"
     command: .buildkite/cleanup-disks.sh
     agents: { queue: standard }
+
+  # Please keep in mind that the release manifest uses specific branch names when creating releases.
+  # Therefore, if you update them, or if you decide to change how we detect what kind of build we're dealing
+  # with, please update this file as well.
+  - label: "(internal) Release: test"
+    if: build.branch =~ /^internal\/release-.*/
+    plugins:
+      - ssh://git@github.com/sourcegraph/sg-buildkite-plugin.git#main: ~
+    command: |
+      sg release run test --workdir=. --config-from-commit
+
+  - label: "(promote) Release: test"
+    if: build.branch =~ /^promote\/release-.*/
+    plugins:
+      - ssh://git@github.com/sourcegraph/sg-buildkite-plugin.git#main: ~
+    command: |
+      sg release run test --workdir=. --config-from-commit
+
+  - label: "Release: test"
+    if: "build.branch =~ /^wip_/"
+    plugins:
+      - ssh://git@github.com/sourcegraph/sg-buildkite-plugin.git#main: ~
+    command: |
+      sg release run test --workdir=. --config-from-commit
+
+  - wait
+
+  - label: "(internal) Release: finalize"
+    if: build.branch =~ /^internal\/release-.*/
+    plugins:
+      - ssh://git@github.com/sourcegraph/sg-buildkite-plugin.git#main: ~
+    command: |
+      sg release run internal finalize --workdir=. --config-from-commit
+
+  - label: "(promote) Release: finalize"
+    if: build.branch =~ /^promote\/release-.*/
+    plugins:
+      - ssh://git@github.com/sourcegraph/sg-buildkite-plugin.git#main: ~
+    command: |
+      sg release run promote-to-public finalize --workdir=. --config-from-commit

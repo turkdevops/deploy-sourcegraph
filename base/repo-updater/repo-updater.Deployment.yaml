@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    description: Handles repository metadata (not Git data) lookups and updates from
-      external code hosts and other similar services.
+    description: Handles repository metadata (not Git data) lookups and updates from external code hosts and other similar services.
     kubectl.kubernetes.io/default-container: repo-updater
   labels:
     deploy: sourcegraph
@@ -30,8 +29,15 @@ spec:
     spec:
       containers:
       - name: repo-updater
-        image: index.docker.io/sourcegraph/repo-updater:insiders@sha256:3d7cee1f23a26e8ac5a92cac22bc303ff7a9946db0d9a3dd077b659e7e1b509e
+        image: index.docker.io/sourcegraph/repo-updater:5.6.185@sha256:86e7fbdffd9642e9f7be8dcb6fc5faa6bc9248689d2ae922eeba4c3800acb511
         env:
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
         terminationMessagePolicy: FallbackToLogsOnError
         ports:
         - containerPort: 3182
@@ -61,32 +67,5 @@ spec:
           requests:
             cpu: "1"
             memory: 500Mi
-      - name: jaeger-agent      
-        image: index.docker.io/sourcegraph/jaeger-agent:insiders@sha256:7f2c8fe1e514a8d21f16a1b04c60fc37fa87afa3b04ac360f600a7e88aacde55
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
-        ports:
-        - containerPort: 5775
-          protocol: UDP
-        - containerPort: 5778
-          protocol: TCP
-        - containerPort: 6831
-          protocol: UDP
-        - containerPort: 6832
-          protocol: UDP
-        resources:
-          limits:
-            cpu: "1"
-            memory: 500M
-          requests:
-            cpu: 100m
-            memory: 100M
-        args:
-          - --reporter.grpc.host-port=jaeger-collector:14250
-          - --reporter.type=grpc
       securityContext:
         runAsUser: 0

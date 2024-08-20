@@ -29,11 +29,26 @@ spec:
       containers:
       - name: worker
         env:
+        - name: PRECISE_CODE_INTEL_UPLOAD_BACKEND
+          value: blobstore
+        - name: PRECISE_CODE_INTEL_UPLOAD_AWS_ENDPOINT
+          value: http://blobstore:9000
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: index.docker.io/sourcegraph/worker:insiders@sha256:dca5ff193513aa85c1f8f48e3b816e3e35742a44a66b8128d88f0826e2defd4f
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
+        image: index.docker.io/sourcegraph/worker:5.6.185@sha256:8d8666abf5ff5f0cfb4e6724d657c271c9a7b13ee6386fabbab7bc67d5567191
+        envFrom:
+        - configMapRef:
+            name: embeddings-backend
+            optional: true
         terminationMessagePolicy: FallbackToLogsOnError
         livenessProbe:
           httpGet:
@@ -54,6 +69,8 @@ spec:
           name: http
         - containerPort: 6060
           name: debug
+        - containerPort: 6996
+          name: prom
         resources:
           limits:
             cpu: "2"

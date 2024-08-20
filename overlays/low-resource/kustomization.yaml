@@ -5,7 +5,7 @@ kind: Kustomization
 resources:
 - ../bases/deployments
 - ../bases/rbac-roles
-              
+
 patches:
 
 - target:
@@ -15,17 +15,11 @@ patches:
     version: v1
   path: delete-resources.yaml
 - target:
-    kind: Deployment
-    name: github-proxy
-    group: apps
-    version: v1
-  path: delete-resources.yaml
-- target:
     kind: StatefulSet
     name: gitserver
     group: apps
     version: v1
-  path: delete-resources-2.yaml
+  path: delete-resources.yaml
 - target:
     kind: StatefulSet
     name: grafana
@@ -103,19 +97,31 @@ patches:
     name: codeintel-db
     group: apps
     version: v1
-  path: delete-resources-4.yaml    
+  path: delete-resources-4.yaml
 - target:
     kind: Deployment
     name: codeinsights-db
     group: apps
     version: v1
-  path: delete-resources-4.yaml  
+  path: delete-resources-4.yaml
 - target:
     kind: Deployment
-    name: minio
+    name: blobstore
     group: apps
     version: v1
-  path: delete-resources.yaml   
+  path: delete-resources.yaml
+- target:
+    kind: Deployment
+    name: otel-agent
+    group: apps
+    version: v1
+  path: delete-resources.yaml
+- target:
+    kind: Deployment
+    name: otel-collector
+    group: apps
+    version: v1
+  path: delete-resources.yaml
 
 - patch: |-
     - op: remove
@@ -135,6 +141,10 @@ patches:
   target:
     kind: StatefulSet
     name: grafana
+- path: otel-agent-patch.yaml
+  target:
+    kind: DaemonSet
+    name: otel-agent
 - patch: |-
     apiVersion: apps/v1
     kind: Deployment
@@ -232,7 +242,7 @@ patches:
             hostPath:
               path: /mnt/disks/ssd0/buildkite/cluster-deployments/
               type: DirectoryOrCreate
-            persistentVolumeClaim: null              
+            persistentVolumeClaim: null
           - name: codeinsights-conf
             configMap:
               defaultMode: 0777
@@ -281,11 +291,11 @@ patches:
       template:
         spec:
           containers:
-          - name: minio
-            args: 
-            - minio
+          - name: blobstore
+            args:
+            - blobstore
             - server
-            - /data-minio
+            - /data-blobstore
             env:
               - name: POD_NAME
                 valueFrom:
@@ -293,19 +303,19 @@ patches:
                     apiVersion: v1
                     fieldPath: metadata.name
             volumeMounts:
-            - mountPath: /data-minio
-              name: minio-data
+            - mountPath: /data-blobstore
+              name: blobstore-data
               subPathExpr: $(POD_NAME)
-          
+
           volumes:
-            - name: minio-data
+            - name: blobstore-data
               hostPath:
                 path: /mnt/disks/ssd0/buildkite/cluster-deployments/
                 type: DirectoryOrCreate
               persistentVolumeClaim: null
   target:
     kind: Deployment
-    name: minio
+    name: blobstore
 - patch: |-
     apiVersion: apps/v1
     kind: Deployment
@@ -362,7 +372,7 @@ patches:
               # directory location on host
               path: /mnt/disks/ssd0/buildkite/cluster-deployments/
               type: DirectoryOrCreate
-            persistentVolumeClaim: null            
+            persistentVolumeClaim: null
   target:
     kind: Deployment
     name: redis-cache
@@ -381,7 +391,7 @@ patches:
                 value: "true"
   target:
     kind: Deployment
-    name: sourcegraph-frontend  
+    name: sourcegraph-frontend
 - patch: |-
     apiVersion: apps/v1
     kind: Deployment
@@ -407,13 +417,13 @@ patches:
       template:
         spec:
           containers:
-            - name: precise-code-intel-worker 
+            - name: precise-code-intel-worker
               env:
               - name: NEW_MIGRATIONS
                 value: "true"
   target:
     kind: Deployment
-    name: precise-code-intel-worker    
+    name: precise-code-intel-worker
 - patch: |-
     apiVersion: apps/v1
     kind: Deployment
@@ -429,13 +439,11 @@ patches:
                 value: "true"
   target:
     kind: Deployment
-    name: repo-updater                          
-    
+    name: repo-updater
+
 patchesStrategicMerge:
 - cadvisor/delete-Daemonset.yaml
-- cadvisor/delete-ClusterRole.yaml
-- cadvisor/delete-ClusterRoleBinding.yaml
 - cadvisor/delete-ServiceAccount.yaml
-- cadvisor/delete-PodSecurityPolicy.yaml
-
+- node-exporter/delete-Daemonset.yaml
+- node-exporter/delete-Service.yaml
 

@@ -29,13 +29,24 @@ spec:
       containers:
       - name: precise-code-intel-worker
         env:
+        - name: PRECISE_CODE_INTEL_UPLOAD_BACKEND
+          value: blobstore
+        - name: PRECISE_CODE_INTEL_UPLOAD_AWS_ENDPOINT
+          value: http://blobstore:9000
         - name: NUM_WORKERS
           value: '4'
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: index.docker.io/sourcegraph/precise-code-intel-worker:insiders@sha256:7f5924733a2cba29e5d3f02f4affe464755ef364600cbbf999bf89667f4001e2
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
+        image: index.docker.io/sourcegraph/precise-code-intel-worker:5.6.185@sha256:3e7693b5feabffd2fde441be8772297497e28ba0c77d21ab0684272814d0fde4
         terminationMessagePolicy: FallbackToLogsOnError
         livenessProbe:
           httpGet:

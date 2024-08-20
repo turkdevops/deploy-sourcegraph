@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: redis-store
-        image: index.docker.io/sourcegraph/redis-store:insiders@sha256:2ac8fe7c72bce7193dfd8f463845ba2ed29b48a7a8d7f6851e231deccc97a689
+        image: index.docker.io/sourcegraph/redis-store:5.6.185@sha256:9a0af32842813a3b2f3ee23ce04bcdad9b02a7b56d075f4fa795b10a50ad25a1
         terminationMessagePolicy: FallbackToLogsOnError
         livenessProbe:
           initialDelaySeconds: 30
@@ -35,9 +35,25 @@ spec:
         - containerPort: 6379
           name: redis
         readinessProbe:
-          initialDelaySeconds: 5
-          tcpSocket:
-            port: redis
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - |
+              #!/bin/bash
+              PASS_CHECK=$(grep -h "requirepass" /etc/redis/redis.conf | cut -d ' ' -f 2)
+              if [ ! -z "$PASS_CHECK" ]; then
+                export REDISCLI_AUTH="$PASS_CHECK"
+              fi
+              response=$(
+                redis-cli ping
+              )
+              if [ "$response" != "PONG" ]; then
+                echo "$response"
+                exit 1
+              fi
         resources:
           limits:
             cpu: "1"
@@ -48,8 +64,8 @@ spec:
         volumeMounts:
         - mountPath: /redis-data
           name: redis-data
-      - name: redis-exporter    
-        image: index.docker.io/sourcegraph/redis_exporter:84464_2021-01-15_c2e4c28@sha256:f3f51453e4261734f08579fe9c812c66ee443626690091401674be4fb724da70
+      - name: redis-exporter
+        image: index.docker.io/sourcegraph/redis_exporter:5.6.185@sha256:4c585d464f734a0b833215a5b9a531e8753cd77b6a2f94bb6ea61f782e5dae03
         terminationMessagePolicy: FallbackToLogsOnError
         ports:
         - containerPort: 9121

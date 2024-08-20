@@ -29,7 +29,7 @@ spec:
     spec:
       initContainers:
       - name: migrator
-        image: index.docker.io/sourcegraph/migrator:insiders@sha256:206093540f0a03a2692fd9f3e605bca3890a4d43584fe75ea880db92359d3f49
+        image: index.docker.io/sourcegraph/migrator:5.6.185@sha256:c723f514cf1eb217fb8c8ca54d174a4cdf2a1f912d949fe77dc88cbe15673307
         args: ["up"]
         resources:
           limits:
@@ -63,7 +63,7 @@ spec:
           value: sg
       containers:
       - name: frontend
-        image: index.docker.io/sourcegraph/frontend:insiders@sha256:db22cf577cbf098c810a43669b32d5bbca18984c64a3add8d2a4ff9e43f389d7
+        image: index.docker.io/sourcegraph/frontend:5.6.185@sha256:99d33f1a7fbbc96dca9c68ed299968603f926b690a326308e8ee62fae534e24b
         args:
         - serve
         env:
@@ -89,21 +89,21 @@ spec:
           value: disable
         - name: CODEINTEL_PGUSER
           value: sg
-        # POD_NAME is used by CACHE_DIR
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        # CACHE_DIR stores larger items we cache. Majority of it is zip
-        # archives of repositories at a commit.
-        - name: CACHE_DIR
-          value: /mnt/cache/$(POD_NAME)
+        - name: PRECISE_CODE_INTEL_UPLOAD_BACKEND
+          value: blobstore
+        - name: PRECISE_CODE_INTEL_UPLOAD_AWS_ENDPOINT
+          value: http://blobstore:9000
         - name: GRAFANA_SERVER_URL
           value: http://grafana:30070
-        - name: JAEGER_SERVER_URL
-          value: http://jaeger-query:16686
         - name: PROMETHEUS_URL
           value: http://prometheus:30090
+        # OTEL_AGENT_HOST must be defined before OTEL_EXPORTER_OTLP_ENDPOINT to substitute the node IP on which the DaemonSet pod instance runs in the latter variable
+        - name: OTEL_AGENT_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_AGENT_HOST):4317
         terminationMessagePolicy: FallbackToLogsOnError
         livenessProbe:
           httpGet:
@@ -135,39 +135,6 @@ spec:
             cpu: "2"
             ephemeral-storage: "4Gi"
             memory: 2G
-        volumeMounts:
-        - mountPath: /mnt/cache
-          name: cache-ssd
-      - name: jaeger-agent
-        image: index.docker.io/sourcegraph/jaeger-agent:insiders@sha256:7f2c8fe1e514a8d21f16a1b04c60fc37fa87afa3b04ac360f600a7e88aacde55
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                apiVersion: v1
-                fieldPath: metadata.name
-        ports:
-        - containerPort: 5775
-          protocol: UDP
-        - containerPort: 5778
-          protocol: TCP
-        - containerPort: 6831
-          protocol: UDP
-        - containerPort: 6832
-          protocol: UDP
-        resources:
-          limits:
-            cpu: "1"
-            memory: 500M
-          requests:
-            cpu: 100m
-            memory: 100M
-        args:
-          - --reporter.grpc.host-port=jaeger-collector:14250
-          - --reporter.type=grpc
       securityContext:
         runAsUser: 0
       serviceAccountName: sourcegraph-frontend
-      volumes:
-      - emptyDir: {}
-        name: cache-ssd
